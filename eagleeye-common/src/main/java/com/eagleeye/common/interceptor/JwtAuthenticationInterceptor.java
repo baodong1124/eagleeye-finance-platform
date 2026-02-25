@@ -67,8 +67,10 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
         // 4. 将用户信息存入请求属性，供后续使用
         Long userId = jwtUtil.getUserIdFromToken(token);
         String username = jwtUtil.getUsernameFromToken(token);
+        Long deptId = jwtUtil.getDeptIdFromToken(token);
         request.setAttribute("userId", userId);
         request.setAttribute("username", username);
+        request.setAttribute("deptId", deptId);
         request.setAttribute("token", token);
 
         log.debug("Token 验证成功，userId={}, username={}, uri={}", userId, username, requestUri);

@@ -32,13 +32,13 @@ public class ExpenseController {
     @Operation(summary = "提交报销单")
     @PostMapping("/submit")
     public Result<Long> submitExpense(
-            @Parameter(description = "申请人ID") @RequestParam(name = "applicantId") Long applicantId,
             @Parameter(description = "并发控制方案：1-数据库悲观锁，2-内存原子操作", required = false) @RequestParam(name = "concurrencyStrategy", defaultValue = "1") Integer concurrencyStrategy,
             @RequestBody ExpenseSubmitDTO dto) {
 
-        log.info("提交报销单，applicantId={}, concurrencyStrategy={}, dto={}", applicantId, concurrencyStrategy, dto);
+        log.info("提交报销单，concurrencyStrategy={}, dto={}", concurrencyStrategy, dto);
         try {
-            Long orderId = expenseSubmitService.submitExpense(applicantId, dto, concurrencyStrategy);
+            // 申请人ID从Token中获取
+            Long orderId = expenseSubmitService.submitExpense(null, dto, concurrencyStrategy);
             return Result.success(orderId);
         } catch (Exception e) {
             log.error("提交报销单失败", e);

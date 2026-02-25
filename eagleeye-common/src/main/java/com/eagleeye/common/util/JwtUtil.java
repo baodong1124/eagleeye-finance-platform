@@ -47,9 +47,24 @@ public class JwtUtil {
      * @return JWT Token
      */
     public String generateToken(Long userId, String username) {
+        return generateToken(userId, username, null);
+    }
+
+    /**
+     * 生成 Token（包含部门ID）
+     *
+     * @param userId   用户ID
+     * @param username 用户名
+     * @param deptId   部门ID
+     * @return JWT Token
+     */
+    public String generateToken(Long userId, String username, Long deptId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
+        if (deptId != null) {
+            claims.put("deptId", deptId);
+        }
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -70,9 +85,17 @@ public class JwtUtil {
      * @return 用户ID
      */
     public Long getUserIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        if (claims != null) {
-            return Long.valueOf(claims.get("userId").toString());
+        try {
+            Claims claims = parseToken(token);
+            if (claims != null && claims.get("userId") != null) {
+                Object userId = claims.get("userId");
+                if (userId instanceof Number) {
+                    return ((Number) userId).longValue();
+                }
+                return Long.valueOf(userId.toString());
+            }
+        } catch (Exception e) {
+            log.warn("从Token中获取userId失败: {}", e.getMessage());
         }
         return null;
     }
@@ -84,9 +107,35 @@ public class JwtUtil {
      * @return 用户名
      */
     public String getUsernameFromToken(String token) {
-        Claims claims = parseToken(token);
-        if (claims != null) {
-            return claims.get("username").toString();
+        try {
+            Claims claims = parseToken(token);
+            if (claims != null && claims.get("username") != null) {
+                return claims.get("username").toString();
+            }
+        } catch (Exception e) {
+            log.warn("从Token中获取username失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 从 Token 中获取部门ID
+     *
+     * @param token JWT Token
+     * @return 部门ID
+     */
+    public Long getDeptIdFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            if (claims != null && claims.get("deptId") != null) {
+                Object deptId = claims.get("deptId");
+                if (deptId instanceof Number) {
+                    return ((Number) deptId).longValue();
+                }
+                return Long.valueOf(deptId.toString());
+            }
+        } catch (Exception e) {
+            log.warn("从Token中获取deptId失败: {}", e.getMessage());
         }
         return null;
     }

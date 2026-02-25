@@ -39,6 +39,21 @@ public class CurrentUserUtil {
     }
 
     /**
+     * 获取当前用户所属部门ID
+     * 从Token中提取deptId属性
+     *
+     * @return 部门ID，如果未登录返回 null
+     */
+    public static Long getCurrentDeptId() {
+        HttpServletRequest request = getRequest();
+        if (request == null) {
+            return null;
+        }
+        Object deptId = request.getAttribute("deptId");
+        return deptId != null ? Long.valueOf(deptId.toString()) : null;
+    }
+
+    /**
      * 获取当前 Token
      *
      * @return Token，如果未登录返回 null

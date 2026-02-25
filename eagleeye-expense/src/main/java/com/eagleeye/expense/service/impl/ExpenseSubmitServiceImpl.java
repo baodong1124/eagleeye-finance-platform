@@ -14,6 +14,7 @@ import com.eagleeye.expense.entity.ExpenseOrder;
 import com.eagleeye.expense.service.ExpenseSubmitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,8 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
     private final TransactionLogService transactionLogService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    
+
 
     // Kafka主题名称
     private static final String EXPENSE_APPROVAL_TOPIC = "expense-approval";
@@ -46,7 +49,20 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long submitExpense(Long applicantId, ExpenseSubmitDTO dto, Integer concurrencyStrategy) {
-        // TODO: 此处需要验证申请人信息
+        // 从Token中获取当前用户信息
+        Long currentUserId = com.eagleeye.common.util.CurrentUserUtil.getCurrentUserId();
+        Long currentDeptId = com.eagleeye.common.util.CurrentUserUtil.getCurrentDeptId();
+        
+        if (currentUserId == null) {
+            throw new RuntimeException("未登录或Token无效");
+        }
+        
+        // 使用Token中的用户ID作为申请人ID
+        applicantId = currentUserId;
+        
+        if (currentDeptId == null) {
+            throw new RuntimeException("用户未分配部门");
+        }
 
         // 计算报销总金额
         BigDecimal totalAmount = dto.getItems().stream()
@@ -68,9 +84,9 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
             }
 
             // ========================================
-            // 查询预算信息
+            // 查询预算信息 - 使用用户所属部门ID
             // ========================================
-            Budget budget = budgetService.getActiveBudget(1, applicantId); // 1表示部门
+            Budget budget = budgetService.getActiveBudget(1, currentDeptId); // 1表示部门预算
             if (budget == null) {
                 throw new RuntimeException("未找到预算信息");
             }

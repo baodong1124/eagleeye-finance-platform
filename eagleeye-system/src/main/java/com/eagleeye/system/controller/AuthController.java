@@ -56,8 +56,8 @@ public class AuthController {
             return Result.error("用户已被禁用");
         }
 
-        // 3. 生成 JWT Token
-        String token = jwtUtil.generateToken(user.getUserId(), user.getUsername());
+        // 3. 生成 JWT Token（包含部门ID）
+        String token = jwtUtil.generateToken(user.getUserId(), user.getUsername(), user.getDeptId());
 
         // 4. 构建响应
         LoginVO.UserInfoVO userInfo = LoginVO.UserInfoVO.builder()
@@ -102,11 +102,11 @@ public class AuthController {
         Long userId = jwtUtil.getUserIdFromToken(token);
         String username = jwtUtil.getUsernameFromToken(token);
 
-        // 生成新 Token
-        String newToken = jwtUtil.generateToken(userId, username);
-
         // 获取用户信息
         User user = userService.getById(userId);
+
+        // 生成新 Token（包含部门ID）
+        String newToken = jwtUtil.generateToken(userId, username, user.getDeptId());
 
         LoginVO.UserInfoVO userInfo = LoginVO.UserInfoVO.builder()
                 .userId(user.getUserId())
