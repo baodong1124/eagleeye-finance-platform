@@ -5,6 +5,7 @@ import com.eagleeye.expense.dto.ExpenseSubmitDTO;
 import com.eagleeye.expense.service.ExpenseSubmitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/expense")
 @RequiredArgsConstructor
 @Tag(name = "报销管理", description = "报销单相关操作")
+@SecurityRequirement(name = "Authorization")
 public class ExpenseController {
 
     private final ExpenseSubmitService expenseSubmitService;
@@ -25,7 +27,7 @@ public class ExpenseController {
     @Operation(summary = "提交报销单")
     @PostMapping("/submit")
     public Result<Long> submitExpense(
-            @Parameter(description = "申请人ID") @RequestParam Long applicantId,
+            @Parameter(description = "申请人ID") @RequestParam(name = "applicantId") Long applicantId,
             @RequestBody ExpenseSubmitDTO dto) {
 
         log.info("提交报销单，applicantId={}, dto={}", applicantId, dto);
@@ -41,10 +43,10 @@ public class ExpenseController {
     @Operation(summary = "审批报销单")
     @PostMapping("/approve")
     public Result<Void> approveExpense(
-            @Parameter(description = "报销单ID") @RequestParam Long orderId,
-            @Parameter(description = "审批人ID") @RequestParam Long approverId,
-            @Parameter(description = "是否通过") @RequestParam Boolean approved,
-            @Parameter(description = "审批意见") @RequestParam(required = false) String comment) {
+            @Parameter(description = "报销单ID") @RequestParam(name = "orderId") Long orderId,
+            @Parameter(description = "审批人ID") @RequestParam(name = "approverId") Long approverId,
+            @Parameter(description = "是否通过") @RequestParam(name = "approved") Boolean approved,
+            @Parameter(description = "审批意见") @RequestParam(name = "comment", required = false) String comment) {
 
         log.info("审批报销单，orderId={}, approverId={}, approved={}", orderId, approverId, approved);
         try {

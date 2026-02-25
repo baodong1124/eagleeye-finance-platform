@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @MapperScan("com.eagleeye.**.mapper")
-public class MybatisPlusConfig {
+public class MyBatisPlusConfig {
 
     /**
      * 配置MyBatis-Plus插件

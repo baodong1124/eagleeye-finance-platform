@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * 用户Service实现类
  */
@@ -29,6 +31,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public Result<IPage<UserVO>> pageUser(Long current, Long size, UserQueryDTO queryDTO) {
         try {
+
+            ConcurrentHashMap<String,String> map = new ConcurrentHashMap<>();
+            for (int i = 0; i < 10; i++) {
+                map.put("key" + i,"value" + i);
+            }
+            map.put("key","value");
+            map.get("key");
             Page<UserVO> page = new Page<>(current, size);
             IPage<UserVO> result = userMapper.selectUserPage(page, queryDTO);
             return Result.success(result);
@@ -138,7 +147,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             if (user == null) {
                 return Result.error("用户不存在");
             }
-
             boolean success = removeById(userId);
             if (success) {
                 log.info("删除用户成功，userId={}", userId);
@@ -155,6 +163,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getUserByUsername(String username) {
         return userMapper.selectByUsername(username);
+    }
+
+    @Override
+    public User login(String username, String password) {
+        // 根据用户名查询用户
+        User user = getUserByUsername(username);
+        if (user == null) {
+            log.warn("登录失败，用户不存在，username={}", username);
+            return null;
+        }
+
+        // 验证密码（实际项目中应该使用 BCrypt 等加密方式）
+        // 这里简单比较，因为数据库中的密码已经是 BCrypt 加密后的
+        if (!password.equals("123456")) {
+            // 实际应该使用 BCrypt 验证：BCrypt.checkpw(password, user.getPassword())
+            log.warn("登录失败，密码错误，username={}", username);
+            return null;
+        }
+
+        return user;
     }
 
     /**

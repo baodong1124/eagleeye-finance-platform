@@ -81,6 +81,11 @@ public class User implements Serializable {
     private String remark;
 
     /**
+     * 头像
+     */
+    private String avatar;
+
+    /**
      * 创建人ID
      */
     @TableField(fill = FieldFill.INSERT)

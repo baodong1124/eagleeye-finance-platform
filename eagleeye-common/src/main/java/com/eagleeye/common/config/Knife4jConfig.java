@@ -1,22 +1,30 @@
 package com.eagleeye.common.config;
 
+import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Collections;
 
 /**
  * Knife4j配置
  * API文档生成配置
  */
 @Configuration
+@EnableKnife4j
 public class Knife4jConfig {
 
+    private static final String SECURITY_SCHEME_NAME = "Authorization";
+
     /**
-     * 配置OpenAPI基本信息
+     * 配置OpenAPI基本信息和安全认证
      */
     @Bean
     public OpenAPI customOpenAPI() {
@@ -30,66 +38,29 @@ public class Knife4jConfig {
                                 .email("support@eagleeye.com"))
                         .license(new License()
                                 .name("Apache 2.0")
-                                .url("https://www.apache.org/licenses/LICENSE-2.0")));
+                                .url("https://www.apache.org/licenses/LICENSE-2.0")))
+                // 配置全局安全要求
+                .security(Collections.singletonList(new SecurityRequirement().addList(SECURITY_SCHEME_NAME)))
+                // 配置安全方案
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes(SECURITY_SCHEME_NAME,
+                                new SecurityScheme()
+                                        .name(SECURITY_SCHEME_NAME)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
     }
 
     /**
-     * 系统管理模块API分组
+     * 分组配置
      */
     @Bean
-    public GroupedOpenApi systemApi() {
+    public GroupedOpenApi defaultApi() {
         return GroupedOpenApi.builder()
-                .group("system")
-                .pathsToMatch("/system/**")
-                .displayName("系统管理")
-                .build();
-    }
-
-    /**
-     * 账户管理模块API分组
-     */
-    @Bean
-    public GroupedOpenApi accountApi() {
-        return GroupedOpenApi.builder()
-                .group("account")
-                .pathsToMatch("/account/**")
-                .displayName("账户管理")
-                .build();
-    }
-
-    /**
-     * 费用管理模块API分组
-     */
-    @Bean
-    public GroupedOpenApi expenseApi() {
-        return GroupedOpenApi.builder()
-                .group("expense")
-                .pathsToMatch("/expense/**")
-                .displayName("费用管理")
-                .build();
-    }
-
-    /**
-     * 支付管理模块API分组
-     */
-    @Bean
-    public GroupedOpenApi paymentApi() {
-        return GroupedOpenApi.builder()
-                .group("payment")
-                .pathsToMatch("/payment/**")
-                .displayName("支付管理")
-                .build();
-    }
-
-    /**
-     * 数据分析模块API分组
-     */
-    @Bean
-    public GroupedOpenApi analysisApi() {
-        return GroupedOpenApi.builder()
-                .group("analysis")
-                .pathsToMatch("/analysis/**")
-                .displayName("数据分析")
+                .group("default")
+                .displayName("全部接口")
+                .packagesToScan("com.eagleeye.system.controller", "com.eagleeye.expense.controller")
+                .pathsToMatch("/api/**")
                 .build();
     }
 }

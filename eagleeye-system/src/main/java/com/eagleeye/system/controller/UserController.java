@@ -8,6 +8,7 @@ import com.eagleeye.system.vo.UserVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Tag(name = "用户管理", description = "用户CRUD操作")
+@SecurityRequirement(name = "Authorization")
 @Validated
 public class UserController {
 
@@ -30,8 +32,8 @@ public class UserController {
     @Operation(summary = "分页查询用户列表")
     @GetMapping("/page")
     public Result<IPage<UserVO>> pageUser(
-            @Parameter(description = "当前页") @RequestParam(defaultValue = "1") Long current,
-            @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "当前页") @RequestParam(name = "current", defaultValue = "1") Long current,
+            @Parameter(description = "每页条数") @RequestParam(name = "size", defaultValue = "10") Long size,
             UserQueryDTO queryDTO) {
 
         log.info("分页查询用户列表，current={}, size={}, queryDTO={}", current, size, queryDTO);
@@ -41,7 +43,7 @@ public class UserController {
     @Operation(summary = "根据ID查询用户详情")
     @GetMapping("/{userId}")
     public Result<UserVO> getUserById(
-            @Parameter(description = "用户ID") @PathVariable Long userId) {
+            @Parameter(description = "用户ID") @PathVariable(name = "userId") Long userId) {
 
         log.info("查询用户详情，userId={}", userId);
         return userService.getUserById(userId);
@@ -64,7 +66,7 @@ public class UserController {
     @Operation(summary = "删除用户")
     @DeleteMapping("/{userId}")
     public Result<Void> deleteUser(
-            @Parameter(description = "用户ID") @PathVariable Long userId) {
+            @Parameter(description = "用户ID") @PathVariable(name = "userId") Long userId) {
 
         log.info("删除用户，userId={}", userId);
         return userService.deleteUser(userId);
