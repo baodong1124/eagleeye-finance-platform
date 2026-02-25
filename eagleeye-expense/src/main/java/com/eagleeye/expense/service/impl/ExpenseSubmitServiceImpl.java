@@ -45,7 +45,7 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long submitExpense(Long applicantId, ExpenseSubmitDTO dto) {
+    public Long submitExpense(Long applicantId, ExpenseSubmitDTO dto, Integer concurrencyStrategy) {
         // TODO: 此处需要验证申请人信息
 
         // 计算报销总金额
@@ -68,28 +68,35 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
             }
 
             // ========================================
-            // 此处需要验证预算余额（调用账户模块）
+            // 查询预算信息
             // ========================================
             Budget budget = budgetService.getActiveBudget(1, applicantId); // 1表示部门
             if (budget == null) {
                 throw new RuntimeException("未找到预算信息");
             }
 
-            // 检查预算余额是否充足
-            if (!budgetService.checkBudgetBalance(budget.getBudgetId(), totalAmount)) {
-                throw new RuntimeException("预算余额不足，当前可用：" + budget.getRemainingAmount());
+            // ========================================
+            // 根据并发控制方案扣减预算
+            // ========================================
+            boolean deductSuccess = false;
+            if (concurrencyStrategy == 2) {
+                // 方案2：内存原子操作
+                deductSuccess = budgetService.deductBudgetWithMemoryAtomic(budget.getBudgetId(), totalAmount);
+                log.info("使用方案2（内存原子操作）扣减预算，budgetId={}, amount={}", budget.getBudgetId(), totalAmount);
+            } else {
+                // 方案1：数据库悲观锁（默认）
+                deductSuccess = budgetService.deductBudgetWithDbLock(budget.getBudgetId(), totalAmount);
+                log.info("使用方案1（数据库悲观锁）扣减预算，budgetId={}, amount={}", budget.getBudgetId(), totalAmount);
+            }
+
+            if (!deductSuccess) {
+                throw new RuntimeException("扣减预算失败，当前可用：" + budget.getRemainingAmount());
             }
 
             // ========================================
             // 此处需要生成分布式唯一ID（用于订单号）
             // ========================================
             String uniqueOrderId = generateSnowflakeId().toString();
-
-            // 冻结预算金额
-            boolean frozen = budgetService.freezeBudget(budget.getBudgetId(), totalAmount);
-            if (!frozen) {
-                throw new RuntimeException("冻结预算失败");
-            }
 
             // 创建报销单
             ExpenseOrder order = createExpenseOrder(applicantId, orderNo, totalAmount, dto);
@@ -111,9 +118,9 @@ public class ExpenseSubmitServiceImpl implements ExpenseSubmitService {
             // ========================================
             // 此处需要记录审计日志
             // ========================================
-            recordAuditLog(applicantId, "SUBMIT_EXPENSE", "提交报销单，订单号：" + orderNo);
+            recordAuditLog(applicantId, "SUBMIT_EXPENSE", "提交报销单，订单号：" + orderNo + "，方案：" + concurrencyStrategy);
 
-            log.info("提交报销单成功，orderId={}, orderNo={}, amount={}", orderId, orderNo, totalAmount);
+            log.info("提交报销单成功，orderId={}, orderNo={}, amount={}, strategy={}", orderId, orderNo, totalAmount, concurrencyStrategy);
             return orderId;
 
         } finally {

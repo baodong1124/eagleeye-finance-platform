@@ -54,4 +54,25 @@ public interface BudgetService extends IService<Budget> {
      * @return 是否充足
      */
     boolean checkBudgetBalance(Long budgetId, BigDecimal amount);
+
+    /**
+     * 方案1：使用数据库悲观锁扣减预算
+     * 适用于强一致性要求场景，读写分离或分布式场景
+     *
+     * @param budgetId 预算ID
+     * @param amount   扣减金额
+     * @return 是否成功
+     */
+    boolean deductBudgetWithDbLock(Long budgetId, BigDecimal amount);
+
+    /**
+     * 方案2：使用内存原子操作扣减预算
+     * 将预算余额加载到内存，使用CAS原子操作实现并发控制
+     * 避免频繁数据库IO和锁竞争，性能更高
+     *
+     * @param budgetId 预算ID
+     * @param amount   扣减金额
+     * @return 是否成功
+     */
+    boolean deductBudgetWithMemoryAtomic(Long budgetId, BigDecimal amount);
 }

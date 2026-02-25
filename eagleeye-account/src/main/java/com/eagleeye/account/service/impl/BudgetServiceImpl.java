@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.eagleeye.account.entity.Budget;
 import com.eagleeye.account.mapper.BudgetMapper;
 import com.eagleeye.account.service.BudgetService;
+import com.eagleeye.common.lock.BudgetMemoryCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 public class BudgetServiceImpl extends ServiceImpl<BudgetMapper, Budget> implements BudgetService {
 
     private final BudgetMapper budgetMapper;
+    private final BudgetMemoryCache budgetMemoryCache;
 
     @Override
     public Budget getActiveBudget(Integer belongType, Long belongId) {
@@ -103,5 +105,85 @@ public class BudgetServiceImpl extends ServiceImpl<BudgetMapper, Budget> impleme
             return false;
         }
         return budget.getRemainingAmount().compareTo(amount) >= 0;
+    }
+
+    /**
+     * 方案1：使用数据库悲观锁扣减预算
+     * 适用于强一致性要求场景，读写分离或分布式场景
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deductBudgetWithDbLock(Long budgetId, BigDecimal amount) {
+        // 使用悲观锁查询（锁定这一行）
+        Budget budget = budgetMapper.selectForUpdate(budgetId);
+        if (budget == null) {
+            log.error("预算不存在，budgetId={}", budgetId);
+            return false;
+        }
+
+        // 检查余额是否充足
+        if (budget.getRemainingAmount().compareTo(amount) < 0) {
+            log.warn("预算余额不足，budgetId={}, remainingAmount={}, requestAmount={}",
+                    budgetId, budget.getRemainingAmount(), amount);
+            return false;
+        }
+
+        // 扣减预算
+        budget.setUsedAmount(budget.getUsedAmount().add(amount));
+        budget.setRemainingAmount(budget.getRemainingAmount().subtract(amount));
+
+        boolean success = updateById(budget);
+        if (success) {
+            log.info("悲观锁扣减预算成功，budgetId={}, amount={}, remainingAmount={}",
+                    budgetId, amount, budget.getRemainingAmount());
+        } else {
+            log.error("更新预算失败，budgetId={}", budgetId);
+        }
+        return success;
+    }
+
+    /**
+     * 方案2：使用内存原子操作扣减预算
+     * 将预算余额加载到内存，使用CAS原子操作实现并发控制
+     * 避免频繁数据库IO和锁竞争，性能更高
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deductBudgetWithMemoryAtomic(Long budgetId, BigDecimal amount) {
+        // 1. 查询预算信息
+        Budget budget = getById(budgetId);
+        if (budget == null) {
+            log.error("预算不存在，budgetId={}", budgetId);
+            return false;
+        }
+
+        // 2. 首次加载预算余额到内存
+        if (budgetMemoryCache.getRemaining(budgetId) == null) {
+            budgetMemoryCache.loadBudget(budgetId, budget.getRemainingAmount());
+        }
+
+        // 3. 使用CAS原子操作在内存中扣减
+        boolean memoryDeductSuccess = budgetMemoryCache.deductWithAtomic(budgetId, amount);
+        if (!memoryDeductSuccess) {
+            return false;
+        }
+
+        // 4. 同步更新到数据库（异步场景可以改为定时批量更新）
+        Budget updateBudget = getById(budgetId);
+        BigDecimal newRemaining = budgetMemoryCache.getRemaining(budgetId);
+        updateBudget.setUsedAmount(updateBudget.getUsedAmount().add(amount));
+        updateBudget.setRemainingAmount(newRemaining);
+
+        boolean dbUpdateSuccess = updateById(updateBudget);
+        if (!dbUpdateSuccess) {
+            log.error("同步数据库失败，budgetId={}", budgetId);
+            // 回滚内存缓存
+            budgetMemoryCache.reloadBudget(budgetId, budget.getRemainingAmount());
+            return false;
+        }
+
+        log.info("内存原子扣减预算成功，budgetId={}, amount={}, remainingAmount={}",
+                budgetId, amount, newRemaining);
+        return true;
     }
 }

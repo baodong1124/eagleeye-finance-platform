@@ -1,15 +1,19 @@
 package com.eagleeye.expense.controller;
 
+import com.eagleeye.account.service.BudgetService;
 import com.eagleeye.common.result.Result;
 import com.eagleeye.expense.dto.ExpenseSubmitDTO;
 import com.eagleeye.expense.service.ExpenseSubmitService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
 
 /**
  * 报销Controller
@@ -23,16 +27,18 @@ import org.springframework.web.bind.annotation.*;
 public class ExpenseController {
 
     private final ExpenseSubmitService expenseSubmitService;
+    private final BudgetService budgetService;
 
     @Operation(summary = "提交报销单")
     @PostMapping("/submit")
     public Result<Long> submitExpense(
             @Parameter(description = "申请人ID") @RequestParam(name = "applicantId") Long applicantId,
+            @Parameter(description = "并发控制方案：1-数据库悲观锁，2-内存原子操作", required = false) @RequestParam(name = "concurrencyStrategy", defaultValue = "1") Integer concurrencyStrategy,
             @RequestBody ExpenseSubmitDTO dto) {
 
-        log.info("提交报销单，applicantId={}, dto={}", applicantId, dto);
+        log.info("提交报销单，applicantId={}, concurrencyStrategy={}, dto={}", applicantId, concurrencyStrategy, dto);
         try {
-            Long orderId = expenseSubmitService.submitExpense(applicantId, dto);
+            Long orderId = expenseSubmitService.submitExpense(applicantId, dto, concurrencyStrategy);
             return Result.success(orderId);
         } catch (Exception e) {
             log.error("提交报销单失败", e);
