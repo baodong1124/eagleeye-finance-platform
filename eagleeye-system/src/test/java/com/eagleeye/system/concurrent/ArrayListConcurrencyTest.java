@@ -3,9 +3,7 @@ package com.eagleeye.system.concurrent;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -444,6 +442,15 @@ public class ArrayListConcurrencyTest {
         log.info("元素丢失次数: {} ({}%)", lossCount, (lossCount * 100.0 / REPEAT_COUNT));
         log.info("结论: CopyOnWriteArrayList能保证单个操作线程安全，但复合操作仍可能重复");
         log.info("适用场景: 读多写少，且能接受最终一致性的场景");
+    }
+
+
+    @Test
+    public void BadKeyTest(){
+        Map<BadKey, String> map = new HashMap<>();
+        for (int i = 0; i < 2000000000; i++) {
+            map.put(new BadKey(i), "val" + i);
+        }
     }
 
     /**
